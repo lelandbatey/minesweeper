@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+
+from pprint import pprint
+
+import msweep
+
+CURRENT = ""
+PRIOR = ""
+
+def draw(board, first_draw=False):
+    global CURRENT
+    global PRIOR
+    CURRENT = str(board) + "\n" + CURRENT + "\n"
+    to_draw = CURRENT
+
+    if not first_draw:
+        up_count = PRIOR.count('\n')
+        max_width = max([len(l) for l in PRIOR.split('\n')])
+        for x in range(up_count):
+            to_draw = " "*max_width + "\r\033[1A" + to_draw
+
+    print(to_draw, end="")
+    PRIOR = CURRENT
+    CURRENT = ""
+
+def pbuf(instr, end="\n"):
+    global CURRENT
+    CURRENT += instr + end
+
+def move_select(direction, field):
+    selected = field.selected()
+    c = selected[0]
+    startloc = [c.x, c.y]
+    delta = [0, 0]
+    if direction == msweep.inpt.KEY_UP:
+        delta = [0, -1]
+    elif direction == msweep.inpt.KEY_DOWN:
+        delta = [0, 1]
+    elif direction == msweep.inpt.KEY_RIGHT:
+        delta = [1, 0]
+    elif direction == msweep.inpt.KEY_LEFT:
+        delta = [-1, 0]
+
+    # Filter out-of-bounds deltas
+    newloc = [startloc[0]+delta[0], startloc[1]+delta[1]]
+    if newloc[0] < 0 or newloc[0] >= field.width:
+        newloc[0] = startloc[0]
+    if newloc[1] < 0 or newloc[1] >= field.height:
+        newloc[1] = startloc[1]
+
+    next_c = field.board[newloc[0]][newloc[1]]
+    c.selected = False
+    next_c.selected = True
+
+
+
+def main():
+    board = msweep.minefield.MineField()
+    draw(board, first_draw=True)
+    inpt_reader = msweep.inpt.new_time_filter(msweep.inpt.new_readinput())
+    while True:
+        key = inpt_reader.get()
+        pbuf("bytes: {}, time: {}".format(key['bytes'], key['time']))
+        if key['bytes'] == [chr(3)]:
+            pbuf('Recieved CTRL-C, exiting!')
+            break
+        keyid = msweep.inpt.keymap(key['bytes'])
+        if keyid:
+            if keyid in msweep.inpt.ARROW_KEYS:
+                move_select(keyid, board)
+        draw(board)
+    draw(board)
+
+
+if __name__ == '__main__':
+    main()
+

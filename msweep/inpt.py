@@ -8,7 +8,7 @@ from datetime import datetime
 from queue import Queue, Empty
 from enum import Enum
 
-import magic_thread
+from . import magic_thread
 
 
 # Originally taken from here: http://stackoverflow.com/a/510364
@@ -51,6 +51,34 @@ KEY_UP = iota()
 KEY_LEFT = iota()
 KEY_RIGHT = iota()
 
+_KEYMAP = {
+    '\033': {
+        '[': {
+            'A': KEY_UP,
+            'B': KEY_DOWN,
+            'D': KEY_LEFT,
+            'C': KEY_RIGHT
+        }
+    }
+}
+
+ARROW_KEYS = set([KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT])
+
+
+def keymap(buf):
+    curmap = _KEYMAP
+    for b in buf:
+        if b in curmap:
+            curmap = curmap[b]
+        else:
+            return None
+    if isinstance(curmap, dict):
+        if "" in curmap:
+            return curmap['']
+        else:
+            return None
+    return curmap
+
 
 @magic_thread.threaded
 def stdin_reader(outq):
@@ -59,8 +87,9 @@ def stdin_reader(outq):
             "bytes": [getch()],
             "time": datetime.utcnow(),
         }
-        print("bytes: {}, time: {}".format(item['bytes'], item['time']))
+        # print("bytes: {}, time: {}".format(item['bytes'], item['time']))
         outq.put(item)
+
 
 def new_readinput():
     q = Queue(maxsize=0)
@@ -87,7 +116,6 @@ def new_time_filter(in_q):
 
     time_filter(rv)
     return rv
-
 
 
 def main():

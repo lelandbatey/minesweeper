@@ -4,12 +4,12 @@ from pprint import pprint
 from enum import Enum
 import random
 
-import colors
+from . import colors
 
 class Contents(object):
-    flag = "⚑"
-    bomb = "💣"
-    empty = " "
+    flag = "⚑ "
+    bomb = " 💣 "
+    empty = "   "
 
 
 
@@ -33,6 +33,8 @@ class MineField(object):
                 if c.contents == Contents.empty:
                     c.contents = Contents.bomb
                     break
+    def selected(self):
+        return [self.board[w][h] for h in range(self.height) for w in range(self.width) if self.board[w][h].selected]
 
     def __str__(self):
         rv = ""
@@ -42,7 +44,7 @@ class MineField(object):
             mid = ""
             footer = ""
             for w in range(self.width):
-                c = m.board[w][h]
+                c = self.board[w][h]
                 nh, nm, nl = c.render()
                 header += nh
                 mid += nm
@@ -117,7 +119,8 @@ class Cell(object):
 
     def __str__(self):
         if self.selected:
-            return colors.red(self.contents)
+            bg = colors.background(colors.COLOR_WHITE, colors.COLOR_RED)
+            return colors.apply_color(bg, self.contents)
         return self.contents
         # return str((self.x, self.y))
 
