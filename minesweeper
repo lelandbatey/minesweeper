@@ -2,6 +2,7 @@
 
 from pprint import pprint, pformat
 from collections import deque
+import argparse
 import sys
 
 from msweep import minefield
@@ -91,6 +92,7 @@ def lose_game(field):
     draw(field, False)
     sys.exit(0)
 
+
 def win_game(field):
     for h in range(field.height):
         for w in range(field.width):
@@ -130,6 +132,7 @@ def probe(mfield):
                     if adj:
                         q.append(adj)
 
+
 def flag(mfield):
     """
     Flags a particular square.
@@ -139,6 +142,7 @@ def flag(mfield):
             cell.flaged = False
         else:
             cell.flaged = True
+
 
 def check_win(mfield):
     correct_flags = 0
@@ -152,12 +156,29 @@ def check_win(mfield):
 
 
 def main():
-    board = minefield.MineField(16, 16, 1)
+    """
+    Initialization of game and main event loop.
+    """
+    parser = argparse.ArgumentParser(
+        description="Play a game of minesweeper. Use arrows to move, 'enter' to probe, 'f' to flag."
+    )
+    parser.add_argument(
+        '--height', type=int, default=9, help="the height of the board")
+    parser.add_argument(
+        '--width', type=int, default=9, help="the height of the board")
+    parser.add_argument(
+        '--mines', type=int, default=None, help="number of mines on the board")
+    parser.add_argument('--debug', dest='debug', action='store_true')
+    parser.set_defaults(debug=False)
+    args = parser.parse_args()
+
+    board = minefield.MineField(height=args.height, width=args.width, bomb_count=args.mines)
     draw(board, first_draw=True)
     inpt_reader = msweep.inpt.new_time_filter(msweep.inpt.new_readinput())
     while True:
         key = inpt_reader.get()
-        # pbuf("bytes: {}, time: {}".format(key['bytes'], key['time']))
+        if args.debug:
+            pbuf("bytes: {}, time: {}".format(key['bytes'], key['time']))
         if key['bytes'] == [chr(3)]:
             pbuf('Recieved CTRL-C, exiting!')
             break
