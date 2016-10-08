@@ -9,7 +9,7 @@ using only the standard library, without Curses!
 
 Do this:
 
-	git clone http://git.home.lelandbatey.com/lelandbatey/minesweeper.git
+	git clone https://github.com/lelandbatey/minesweeper.git
 	cd minesweeper/
 	./minesweeper -h # To print usage
 	./minesweeper
