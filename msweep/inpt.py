@@ -52,8 +52,10 @@ KEY_LEFT = iota()
 KEY_RIGHT = iota()
 KEY_ENTER = iota()
 
+# These are the control keys
 _KEYMAP = {
     '\r' : KEY_ENTER,
+    # Arrow keys for terminal
     '\033': {
         '[': {
             'A': KEY_UP,
@@ -61,7 +63,19 @@ _KEYMAP = {
             'D': KEY_LEFT,
             'C': KEY_RIGHT
         }
-    }
+    },
+    # Space is also enter
+    ' ' : KEY_ENTER,
+    # vim keys
+    'k': KEY_UP,
+    'j': KEY_DOWN,
+    'h': KEY_LEFT,
+    'l': KEY_RIGHT,
+    # wasd
+    'w': KEY_UP,
+    's': KEY_DOWN,
+    'a': KEY_LEFT,
+    'd': KEY_RIGHT
 }
 
 ARROW_KEYS = set([KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT])
