@@ -5,6 +5,8 @@ Minesweeper!
 A simple implementation of minesweeper in the terminal. Written in Python 3,
 using only the standard library, without Curses!
 
+![Can you believe it?](./screenshot.png)
+
 ## How do I play right now?
 
 Do this:
