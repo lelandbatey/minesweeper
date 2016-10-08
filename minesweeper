@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 from pprint import pprint, pformat
+from collections import deque
 import sys
 
+from msweep import minefield
 import msweep
 
 CURRENT = ""
@@ -12,7 +14,7 @@ PRIOR = ""
 def draw(board, first_draw=False):
     global CURRENT
     global PRIOR
-    CURRENT = str(board) + "\n" + CURRENT# + "\n"
+    CURRENT = str(board) + "\n" + CURRENT  # + "\n"
     to_draw = CURRENT
 
     if not first_draw:
@@ -31,13 +33,13 @@ def pbuf(instr, end="\n"):
     global CURRENT
     CURRENT += instr + end
 
+
 def get_adjacent(cell):
-    # selected = field.selected()
-    # c = selected[0]
+    """
+    Returns a list containing all cells which are adjacent to the provided cell.
+    """
 
     def get(incell, loc):
-        # selected = field.selected()
-        # cell = selected[0]
         loc[0] = incell.x + loc[0]
         loc[1] = incell.y + loc[1]
         if loc[0] >= incell.field.width or loc[0] < 0:
@@ -48,9 +50,9 @@ def get_adjacent(cell):
 
     touching = [cell.above(), cell.below(), cell.right(), cell.left()]
     corner_deltas = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-    # touching += [get(field, delt) for delt in [[cell.x+d[0], cell.y+d[1]] for d in corner_deltas]]
     touching += [get(cell, delt) for delt in corner_deltas]
-    return touching
+    return [x for x in touching if x]
+
 
 def move_select(direction, field):
     selected = field.selected()
@@ -78,91 +80,84 @@ def move_select(direction, field):
     next_c.selected = True
 
 
-def print_selected(field):
-    selected = field.selected()
-    c = selected[0]
-
-    def get(field, loc):
-        selected = field.selected()
-        cell = selected[0]
-        loc[0] = c.x + loc[0]
-        loc[1] = c.y + loc[1]
-        if loc[0] >= field.width or loc[0] < 0:
-            return None
-        if loc[1] >= field.height or loc[1] < 0:
-            return None
-        return field.board[loc[0]][loc[1]]
-
-    def contents(cell):
-        if cell:
-            return cell.contents == msweep.minefield.Contents.bomb
-        return False
-
-    contacts = {
-        "above": c.above(),
-        "right": c.right(),
-        "below": c.below(),
-        "left": c.left(),
-        "↗": get(field, [1, -1]),
-        "↘": get(field, [1, 1]),
-        "↙": get(field, [-1, 1]),
-        "↖": get(field, [-1, -1]),
-    }
-    contacts = {k: contents(contacts[k]) for k in contacts}
-    # pbuf(pformat(contacts))
-    # pbuf(str(touching))
-
 def lose_game(field):
-    contents = msweep.minefield.Contents
-    colors = msweep.colors
     for h in range(field.height):
         for w in range(field.width):
             c = field.board[w][h]
-            if c.contents == contents.bomb:
-                bg = colors.background(colors.COLOR_WHITE, colors.COLOR_RED)
-                c.guess = colors.apply_color(bg, c.contents)
+            if c.contents == minefield.Contents.bomb:
+                c.probed = True
     draw(field, False)
-    # pbuf(field)
     pbuf("Found bomb, you lose!")
     draw(field, False)
     sys.exit(0)
 
-def guess_cell(c):
-    def has_guess(incell):
-        return not incell.guess == msweep.minefield.Contents.empty
-    if not has_guess(c):
-        if c.contents == msweep.minefield.Contents.bomb:
-            lose_game(c.field)
-            # c.guess = msweep.minefield.Contents.bomb
-            # return
-        if c.bomb_contacts == 0:
-            c.guess = "inprogress"
-            # adjacent = [c.above(), c.below(), c.right(), c.left()]
-            adjacent = get_adjacent(c)
-            # pbuf(pformat(adjacent))
-            for adj in adjacent:
-                if adj:
-                    guess_cell(adj)
-    fmt = "{{:^{}}}".format(len(msweep.minefield.Contents.bomb))
-    fill = fmt.format(c.bomb_contacts)
-    colr = msweep.minefield.nearness_colors(c.bomb_contacts)
-    fill = msweep.colors.apply_color(colr, fill)
-    c.guess = fill
+def win_game(field):
+    for h in range(field.height):
+        for w in range(field.width):
+            c = field.board[w][h]
+            if c.contents == minefield.Contents.bomb:
+                c.probed = True
+                c.contents = minefield.Contents.smile
+    draw(field, False)
+    pbuf("You win!")
+    draw(field, False)
+    sys.exit(0)
 
-def guess(field):
-    selected = field.selected()
-    c = selected[0]
-    guess_cell(c)
 
+def probe(mfield):
+    """
+    Probes the minefields currently selected cell.
+    If the current cell has a bomb in it, the user loses the game.
+    If the current cell does not have a bomb in it, but the current cell is
+    adjacent to a cell that does have a bomb in it, then the number of bombs
+    the current cell is adjacent to is revealed on the board.
+    If the current cell contains no bombs and is not adjacent to any bombs,
+    then all adjacent cells are recursively probed.
+    """
+    q = deque(mfield.selected())
+    while True:
+        if not len(q):
+            break
+        cell = q.popleft()
+        if not cell.probed:
+            cell.probed = True
+            if cell.contents == minefield.Contents.bomb:
+                lose_game(mfield)
+            if cell.bomb_contacts == 0:
+                cell.probed = True
+                adjacent = get_adjacent(cell)
+                for adj in adjacent:
+                    if adj:
+                        q.append(adj)
+
+def flag(mfield):
+    """
+    Flags a particular square.
+    """
+    for cell in mfield.selected():
+        if cell.flaged:
+            cell.flaged = False
+        else:
+            cell.flaged = True
+
+def check_win(mfield):
+    correct_flags = 0
+    for h in range(mfield.height):
+        for w in range(mfield.width):
+            c = mfield.board[w][h]
+            if c.contents == minefield.Contents.bomb and c.flaged:
+                correct_flags += 1
+    if correct_flags == mfield.bomb_count:
+        win_game(mfield)
 
 
 def main():
-    board = msweep.minefield.MineField(16, 16)
+    board = minefield.MineField(16, 16, 1)
     draw(board, first_draw=True)
     inpt_reader = msweep.inpt.new_time_filter(msweep.inpt.new_readinput())
     while True:
         key = inpt_reader.get()
-        pbuf("bytes: {}, time: {}".format(key['bytes'], key['time']))
+        # pbuf("bytes: {}, time: {}".format(key['bytes'], key['time']))
         if key['bytes'] == [chr(3)]:
             pbuf('Recieved CTRL-C, exiting!')
             break
@@ -171,8 +166,10 @@ def main():
             if keyid in msweep.inpt.ARROW_KEYS:
                 move_select(keyid, board)
             if keyid == msweep.inpt.KEY_ENTER:
-                # print_selected(board)
-                guess(board)
+                probe(board)
+        elif key['bytes'] == ['f']:
+            flag(board)
+        check_win(board)
         draw(board, False)
     draw(board, False)
 

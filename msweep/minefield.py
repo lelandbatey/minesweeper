@@ -11,12 +11,14 @@ class Contents(object):
     flag = " ⚑ "
     bomb = " 💣 "
     empty = "   "
+    smile = " ☺ "
 
 
 class MineField(object):
-    def __init__(self, width=9, height=9):
+    def __init__(self, width=9, height=9, bomb_count=None):
         self.width = width
         self.height = height
+        self.bomb_count = bomb_count
         self.board = [
             [Cell(w, h, width, height, self) for h in range(0, height)]
             for w in range(0, width)
@@ -28,9 +30,10 @@ class MineField(object):
 
         self.board[0][0].selected = True
 
-    def _populate_bombs(self, count=None):
-        if count is None:
-            count = int(0.15 * (self.height * self.width))
+    def _populate_bombs(self):
+        if self.bomb_count is None:
+            self.bomb_count = int(0.15 * (self.height * self.width))
+        count = self.bomb_count
         for x in range(count):
             while True:
                 rx, ry = random.randint(0, self.width - 1), random.randint(
@@ -76,9 +79,12 @@ class Cell(object):
         self.contents = Contents.empty
         self.selected = False
         self.bomb_contacts = 0
-        self.guess = Contents.empty
+        self.probed = False
+        self.flaged = False
 
     def set_bomb_contacts(self):
+        if self.contents == Contents.bomb:
+            self.bomb_contacts = -1
         def get(field, loc):
             if loc[0] >= field.width or loc[0] < 0:
                 return None
@@ -88,7 +94,10 @@ class Cell(object):
 
         touching = [self.above(), self.below(), self.right(), self.left()]
         corner_deltas = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-        touching += [get(self.field, delt) for delt in [[self.x+d[0],self.y+d[1]] for d in corner_deltas]]
+        touching += [
+            get(self.field, delt)
+            for delt in [[self.x + d[0], self.y + d[1]] for d in corner_deltas]
+        ]
         for cell in touching:
             if cell is not None:
                 if cell.contents == Contents.bomb:
@@ -172,22 +181,36 @@ class Cell(object):
     def __str__(self):
         to_display = ""
         fmt = "{{:^{}}}".format(len(Contents.bomb))
-        # if self.guess is not Contents.bomb:
-            # to_display = fmt.format(self.bomb_contacts)
-        # else:
-            # to_display = self.guess
-        to_display = self.guess
+        to_display = Contents.empty
+        if self.flaged:
+            to_display = Contents.flag
+        if self.probed:
+            if self.contents == Contents.bomb:
+                bg = colors.background(colors.COLOR_WHITE, colors.COLOR_RED)
+                fill = colors.apply_color(bg, self.contents)
+                return fill
+            elif self.contents == Contents.smile:
+                contents = fmt.format(self.contents)
+                colr = nearness_colors(self.bomb_contacts)
+                return colors.apply_color(colr, contents)
+            fill = fmt.format(self.bomb_contacts)
+            colr = nearness_colors(self.bomb_contacts)
+            to_display = colors.apply_color(colr, fill)
+
         if self.selected:
             bg = colors.background(colors.COLOR_WHITE, colors.COLOR_RED)
             return colors.apply_color(bg, to_display)
-        if self.guess == Contents.empty:
+        if not self.probed:
             bg = colors.background(colors.COLOR_BLACK, colors.COLOR_WHITE)
             return colors.apply_color(bg, to_display)
+
         return to_display
-        # return str((self.x, self.y))
+
 
 def nearness_colors(contacts):
-    if contacts == 0:
+    if contacts == -1:
+        return colors.background(colors.COLOR_BLACK, colors.COLOR_GREEN_BRIGHT)
+    elif contacts == 0:
         return colors.COLOR_BLACK
     elif contacts == 1:
         return colors.COLOR_CYAN

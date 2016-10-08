@@ -16,7 +16,6 @@ def background(fg_color, bg_color):
     fg_code = extract_colornum(fg_color)
     bg_code = extract_colornum(bg_color)
     return "\x1b[3{}m\x1b[4{}m".format(fg_code, bg_code)
-    # return "\x1b[3{};4{}m".format(fg_code, bg_code)
 
 
 COLOR_RESET = "\x1b[0m"
