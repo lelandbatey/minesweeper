@@ -32,12 +32,23 @@ class MineField(object):
 
     def _populate_bombs(self):
         if self.bomb_count is None:
-            self.bomb_count = int(0.15 * (self.height * self.width))
+            self.bomb_count = int(0.14 * (self.height * self.width))
         count = self.bomb_count
+        selectionfuncs = [
+            lambda y: not (y % 2),
+            lambda y: bool(y % 2),
+        ]
+        random.shuffle(selectionfuncs)
+        ysel, xsel = selectionfuncs
         for x in range(count):
             while True:
                 rx, ry = random.randint(0, self.width - 1), random.randint(
                     0, self.height - 1)
+                # Don't place mines on even rows
+                if ysel(ry):
+                    continue
+                if xsel(rx):
+                    continue
                 c = self.board[rx][ry]
                 if c.contents == Contents.empty:
                     c.contents = Contents.bomb
@@ -85,6 +96,7 @@ class Cell(object):
     def set_bomb_contacts(self):
         if self.contents == Contents.bomb:
             self.bomb_contacts = -1
+
         def get(field, loc):
             if loc[0] >= field.width or loc[0] < 0:
                 return None

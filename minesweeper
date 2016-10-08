@@ -8,6 +8,8 @@ import sys
 from msweep import minefield
 import msweep
 
+DEBUG = False
+
 CURRENT = ""
 PRIOR = ""
 
@@ -82,11 +84,12 @@ def move_select(direction, field):
 
 
 def lose_game(field):
-    for h in range(field.height):
-        for w in range(field.width):
-            c = field.board[w][h]
-            if c.contents == minefield.Contents.bomb:
-                c.probed = True
+    if DEBUG:
+        for h in range(field.height):
+            for w in range(field.width):
+                c = field.board[w][h]
+                if c.contents == minefield.Contents.bomb:
+                    c.probed = True
     draw(field, False)
     pbuf("Found bomb, you lose!")
     draw(field, False)
@@ -160,24 +163,32 @@ def main():
     Initialization of game and main event loop.
     """
     parser = argparse.ArgumentParser(
-        description="Play a game of minesweeper. Use arrows to move, 'enter' to probe, 'f' to flag."
+        description="Play a game of minesweeper. Use arrows to move, 'enter' to probe, 'f' to flag, CTRL-C to exit."
     )
     parser.add_argument(
-        '--height', type=int, default=9, help="the height of the board")
+        '--height',
+        type=int,
+        default=16,
+        help="the height of the board (default=16)")
     parser.add_argument(
-        '--width', type=int, default=9, help="the height of the board")
+        '--width',
+        type=int,
+        default=16,
+        help="the height of the board (default=16)")
     parser.add_argument(
         '--mines', type=int, default=None, help="number of mines on the board")
     parser.add_argument('--debug', dest='debug', action='store_true')
     parser.set_defaults(debug=False)
     args = parser.parse_args()
+    DEBUG = args.debug
 
-    board = minefield.MineField(height=args.height, width=args.width, bomb_count=args.mines)
+    board = minefield.MineField(
+        height=args.height, width=args.width, bomb_count=args.mines)
     draw(board, first_draw=True)
     inpt_reader = msweep.inpt.new_time_filter(msweep.inpt.new_readinput())
     while True:
         key = inpt_reader.get()
-        if args.debug:
+        if DEBUG:
             pbuf("bytes: {}, time: {}".format(key['bytes'], key['time']))
         if key['bytes'] == [chr(3)]:
             pbuf('Recieved CTRL-C, exiting!')
