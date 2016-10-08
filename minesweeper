@@ -1,31 +1,56 @@
 #!/usr/bin/env python3
 
-from pprint import pprint
+from pprint import pprint, pformat
+import sys
 
 import msweep
 
 CURRENT = ""
 PRIOR = ""
 
+
 def draw(board, first_draw=False):
     global CURRENT
     global PRIOR
-    CURRENT = str(board) + "\n" + CURRENT + "\n"
+    CURRENT = str(board) + "\n" + CURRENT# + "\n"
     to_draw = CURRENT
 
     if not first_draw:
         up_count = PRIOR.count('\n')
         max_width = max([len(l) for l in PRIOR.split('\n')])
         for x in range(up_count):
-            to_draw = " "*max_width + "\r\033[1A" + to_draw
+            # to_draw = " " * max_width + "\r\x1b[1A" + to_draw
+            to_draw = "\r\x1b[1A" + to_draw
 
     print(to_draw, end="")
     PRIOR = CURRENT
     CURRENT = ""
 
+
 def pbuf(instr, end="\n"):
     global CURRENT
     CURRENT += instr + end
+
+def get_adjacent(cell):
+    # selected = field.selected()
+    # c = selected[0]
+
+    def get(incell, loc):
+        # selected = field.selected()
+        # cell = selected[0]
+        loc[0] = incell.x + loc[0]
+        loc[1] = incell.y + loc[1]
+        if loc[0] >= incell.field.width or loc[0] < 0:
+            return None
+        if loc[1] >= incell.field.height or loc[1] < 0:
+            return None
+        return incell.field.board[loc[0]][loc[1]]
+
+    touching = [cell.above(), cell.below(), cell.right(), cell.left()]
+    corner_deltas = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+    # touching += [get(field, delt) for delt in [[cell.x+d[0], cell.y+d[1]] for d in corner_deltas]]
+    touching += [get(cell, delt) for delt in corner_deltas]
+    return touching
 
 def move_select(direction, field):
     selected = field.selected()
@@ -42,7 +67,7 @@ def move_select(direction, field):
         delta = [-1, 0]
 
     # Filter out-of-bounds deltas
-    newloc = [startloc[0]+delta[0], startloc[1]+delta[1]]
+    newloc = [startloc[0] + delta[0], startloc[1] + delta[1]]
     if newloc[0] < 0 or newloc[0] >= field.width:
         newloc[0] = startloc[0]
     if newloc[1] < 0 or newloc[1] >= field.height:
@@ -53,9 +78,86 @@ def move_select(direction, field):
     next_c.selected = True
 
 
+def print_selected(field):
+    selected = field.selected()
+    c = selected[0]
+
+    def get(field, loc):
+        selected = field.selected()
+        cell = selected[0]
+        loc[0] = c.x + loc[0]
+        loc[1] = c.y + loc[1]
+        if loc[0] >= field.width or loc[0] < 0:
+            return None
+        if loc[1] >= field.height or loc[1] < 0:
+            return None
+        return field.board[loc[0]][loc[1]]
+
+    def contents(cell):
+        if cell:
+            return cell.contents == msweep.minefield.Contents.bomb
+        return False
+
+    contacts = {
+        "above": c.above(),
+        "right": c.right(),
+        "below": c.below(),
+        "left": c.left(),
+        "↗": get(field, [1, -1]),
+        "↘": get(field, [1, 1]),
+        "↙": get(field, [-1, 1]),
+        "↖": get(field, [-1, -1]),
+    }
+    contacts = {k: contents(contacts[k]) for k in contacts}
+    # pbuf(pformat(contacts))
+    # pbuf(str(touching))
+
+def lose_game(field):
+    contents = msweep.minefield.Contents
+    colors = msweep.colors
+    for h in range(field.height):
+        for w in range(field.width):
+            c = field.board[w][h]
+            if c.contents == contents.bomb:
+                bg = colors.background(colors.COLOR_WHITE, colors.COLOR_RED)
+                c.guess = colors.apply_color(bg, c.contents)
+    draw(field, False)
+    # pbuf(field)
+    pbuf("Found bomb, you lose!")
+    draw(field, False)
+    sys.exit(0)
+
+def guess_cell(c):
+    def has_guess(incell):
+        return not incell.guess == msweep.minefield.Contents.empty
+    if not has_guess(c):
+        if c.contents == msweep.minefield.Contents.bomb:
+            lose_game(c.field)
+            # c.guess = msweep.minefield.Contents.bomb
+            # return
+        if c.bomb_contacts == 0:
+            c.guess = "inprogress"
+            # adjacent = [c.above(), c.below(), c.right(), c.left()]
+            adjacent = get_adjacent(c)
+            # pbuf(pformat(adjacent))
+            for adj in adjacent:
+                if adj:
+                    guess_cell(adj)
+    fmt = "{{:^{}}}".format(len(msweep.minefield.Contents.bomb))
+    fill = fmt.format(c.bomb_contacts)
+    colr = msweep.minefield.nearness_colors(c.bomb_contacts)
+    fill = msweep.colors.apply_color(colr, fill)
+    c.guess = fill
+
+def guess(field):
+    selected = field.selected()
+    c = selected[0]
+    guess_cell(c)
+
+
 
 def main():
-    board = msweep.minefield.MineField()
+    board = msweep.minefield.MineField(16, 16)
     draw(board, first_draw=True)
     inpt_reader = msweep.inpt.new_time_filter(msweep.inpt.new_readinput())
     while True:
@@ -68,10 +170,12 @@ def main():
         if keyid:
             if keyid in msweep.inpt.ARROW_KEYS:
                 move_select(keyid, board)
-        draw(board)
-    draw(board)
+            if keyid == msweep.inpt.KEY_ENTER:
+                # print_selected(board)
+                guess(board)
+        draw(board, False)
+    draw(board, False)
 
 
 if __name__ == '__main__':
     main()
-

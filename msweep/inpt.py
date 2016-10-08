@@ -50,8 +50,10 @@ KEY_DOWN = iota()
 KEY_UP = iota()
 KEY_LEFT = iota()
 KEY_RIGHT = iota()
+KEY_ENTER = iota()
 
 _KEYMAP = {
+    '\r' : KEY_ENTER,
     '\033': {
         '[': {
             'A': KEY_UP,
