@@ -51,6 +51,7 @@ KEY_UP = iota()
 KEY_LEFT = iota()
 KEY_RIGHT = iota()
 KEY_ENTER = iota()
+KEY_SPACE = iota()
 
 # These are the control keys
 _KEYMAP = {
@@ -64,8 +65,7 @@ _KEYMAP = {
             'C': KEY_RIGHT
         }
     },
-    # Space is also enter
-    ' ' : KEY_ENTER,
+    ' ' : KEY_SPACE,
     # vim keys
     'k': KEY_UP,
     'j': KEY_DOWN,
@@ -79,6 +79,7 @@ _KEYMAP = {
 }
 
 ARROW_KEYS = set([KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT])
+PROBE_KEYS = set([KEY_ENTER, KEY_SPACE])
 
 
 def keymap(buf):
