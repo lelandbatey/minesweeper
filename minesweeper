@@ -163,7 +163,7 @@ def main():
     Initialization of game and main event loop.
     """
     parser = argparse.ArgumentParser(
-        description="Play a game of minesweeper. Use arrows to move, 'enter' to probe, 'f' to flag, CTRL-C to exit."
+        description="Play a game of minesweeper. Use arrows to move, 'enter' or 'space' to probe, 'f' to flag, CTRL-C to exit."
     )
     parser.add_argument(
         '--height',
@@ -197,7 +197,7 @@ def main():
         if keyid:
             if keyid in msweep.inpt.ARROW_KEYS:
                 move_select(keyid, board)
-            if keyid == msweep.inpt.KEY_ENTER:
+            if keyid in msweep.inpt.PROBE_KEYS:
                 probe(board)
         elif key['bytes'] == ['f']:
             flag(board)
