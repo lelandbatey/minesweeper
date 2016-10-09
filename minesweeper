@@ -5,7 +5,7 @@ from collections import deque
 import argparse
 import sys
 
-from msweep import minefield
+from msweep import minefield, colors
 import msweep
 
 DEBUG = False
@@ -13,6 +13,9 @@ DEBUG = False
 CURRENT = ""
 PRIOR = ""
 
+def maxlinelen(strng):
+    # We have to remove colors or else they're counted in the line length
+    return max([len(colors.remove_color(l)) for l in strng.split('\n')])
 
 def draw(board, first_draw=False):
     global CURRENT
@@ -21,11 +24,11 @@ def draw(board, first_draw=False):
     to_draw = CURRENT
 
     if not first_draw:
+        max_width = max([maxlinelen(CURRENT), maxlinelen(PRIOR)])
+        fmt = "{{:<{}}}".format(max_width)
         up_count = PRIOR.count('\n')
-        max_width = max([len(l) for l in PRIOR.split('\n')])
-        for x in range(up_count):
-            # to_draw = " " * max_width + "\r\x1b[1A" + to_draw
-            to_draw = "\r\x1b[1A" + to_draw
+        to_draw = "\n".join([fmt.format(line) for line in CURRENT.split('\n')])
+        to_draw = ("\r\x1b[1A" * up_count) + to_draw
 
     print(to_draw, end="")
     PRIOR = CURRENT
@@ -36,25 +39,6 @@ def pbuf(instr, end="\n"):
     global CURRENT
     CURRENT += instr + end
 
-
-def get_adjacent(cell):
-    """
-    Returns a list containing all cells which are adjacent to the provided cell.
-    """
-
-    def get(incell, loc):
-        loc[0] = incell.x + loc[0]
-        loc[1] = incell.y + loc[1]
-        if loc[0] >= incell.field.width or loc[0] < 0:
-            return None
-        if loc[1] >= incell.field.height or loc[1] < 0:
-            return None
-        return incell.field.board[loc[0]][loc[1]]
-
-    touching = [cell.above(), cell.below(), cell.right(), cell.left()]
-    corner_deltas = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-    touching += [get(cell, delt) for delt in corner_deltas]
-    return [x for x in touching if x]
 
 
 def move_select(direction, field):
@@ -84,15 +68,15 @@ def move_select(direction, field):
 
 
 def lose_game(field):
-    if DEBUG:
-        for h in range(field.height):
-            for w in range(field.width):
-                c = field.board[w][h]
-                if c.contents == minefield.Contents.bomb:
-                    c.probed = True
+    for h in range(field.height):
+        for w in range(field.width):
+            c = field.board[w][h]
+            if c.contents == minefield.Contents.bomb:
+                c.transparent = True
     draw(field, False)
     pbuf("Found bomb, you lose!")
     draw(field, False)
+    print()
     sys.exit(0)
 
 
@@ -132,11 +116,9 @@ def probe(mfield):
             if cell.contents == minefield.Contents.bomb:
                 lose_game(mfield)
             if cell.bomb_contacts == 0:
-                cell.probed = True
-                adjacent = get_adjacent(cell)
+                adjacent = cell.get_adjacent()
                 for adj in adjacent:
-                    if adj:
-                        q.append(adj)
+                    q.append(adj)
 
 
 def flag(mfield):
@@ -161,10 +143,24 @@ def check_win(mfield):
         win_game(mfield)
 
 
+def open_corridors(mfield):
+    selected = mfield.selected()
+    original = selected[0]
+    for h in range(mfield.height):
+        for w in range(mfield.width):
+            c = mfield.board[w][h]
+            if c.bomb_contacts == 0:
+                original.selected = False
+                c.selected = True
+                probe(mfield)
+                c.selected = False
+                original.selected = True
+
 def main():
     """
     Initialization of game and main event loop.
     """
+    global DEBUG
     parser = argparse.ArgumentParser(
         description="Play a game of minesweeper. Use arrows to move, 'enter' or 'space' to probe, 'f' to flag, CTRL-C to exit."
     )
@@ -201,9 +197,15 @@ def main():
             if keyid in msweep.inpt.ARROW_KEYS:
                 move_select(keyid, board)
             if keyid in msweep.inpt.PROBE_KEYS:
+                if board.brandnew:
+                    board.create_foothold()
+                    board.brandnew = False
                 probe(board)
         elif key['bytes'] == ['f']:
             flag(board)
+        elif key['bytes'] == ['o']:
+            if DEBUG:
+                open_corridors(board)
         check_win(board)
         draw(board, False)
     draw(board, False)

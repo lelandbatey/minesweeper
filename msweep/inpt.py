@@ -84,7 +84,10 @@ PROBE_KEYS = set([KEY_ENTER, KEY_SPACE])
 
 def keymap(buf):
     curmap = _KEYMAP
-    for b in buf:
+    for b in buf:  # \033[A\033[B
+        if not isinstance(curmap, dict):
+            # aha found a suitable key, BUT there's still more input
+            return curmap
         if b in curmap:
             curmap = curmap[b]
         else:

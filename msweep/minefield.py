@@ -24,40 +24,70 @@ class MineField(object):
             for w in range(0, width)
         ]
         self._populate_bombs()
-        for h in range(self.height):
-            for w in range(self.width):
-                self.board[w][h].set_bomb_contacts()
+        self.set_bomb_contacts()
 
         self.board[0][0].selected = True
+        self.brandnew = True
 
     def _populate_bombs(self):
         if self.bomb_count is None:
-            self.bomb_count = int(0.14 * (self.height * self.width))
+            self.bomb_count = int(0.15 * (self.height * self.width))
         count = self.bomb_count
         selectionfuncs = [
             lambda y: not (y % 2),
             lambda y: bool(y % 2),
+            lambda y: not (y %3)
         ]
-        random.shuffle(selectionfuncs)
-        ysel, xsel = selectionfuncs
+        # random.shuffle(selectionfuncs)
+        # yconstraint, xconstraint = selectionfuncs
+        yconstraint, xconstraint = random.sample(selectionfuncs*2, 2)
         for x in range(count):
             while True:
                 rx, ry = random.randint(0, self.width - 1), random.randint(
                     0, self.height - 1)
                 # Don't place mines on even rows
-                if ysel(ry):
-                    continue
-                if xsel(rx):
-                    continue
+                if random.randint(0, 1):
+                    if yconstraint(ry):
+                        continue
+                    if xconstraint(rx):
+                        continue
                 c = self.board[rx][ry]
                 if c.contents == Contents.empty:
                     c.contents = Contents.bomb
                     break
 
+    def set_bomb_contacts(self):
+        """ for all cells in this minefield, calculate # of bomb contacts"""
+        self.bomb_count = 0
+        for h in range(self.height):
+            for w in range(self.width):
+                c = self.board[w][h]
+                c.bomb_contacts = 0
+                if c.contents == Contents.bomb:
+                    self.bomb_count += 1
+        for h in range(self.height):
+            for w in range(self.width):
+                self.board[w][h].set_bomb_contacts()
+
     def selected(self):
         return [self.board[w][h]
                 for h in range(self.height) for w in range(self.width)
                 if self.board[w][h].selected]
+
+    def create_foothold(self):
+        """generally called when the user makes first selection. Clear out any
+        bombs within 2 spaces of the existing selection and move them elsewhere
+        onto the board. This prevents losing on the first probe and (usually)
+        enables a corridor to open up on which the user may begin working
+        """
+        sel = self.selected()
+        cell = sel[0]
+        if cell.contents == Contents.bomb:
+            cell.contents = Contents.empty
+        for adj in cell.get_adjacent():
+            if adj.contents == Contents.bomb:
+                adj.contents = Contents.empty
+        self.set_bomb_contacts()
 
     def __str__(self):
         rv = ""
@@ -92,10 +122,12 @@ class Cell(object):
         self.bomb_contacts = 0
         self.probed = False
         self.flaged = False
+        self.transparent = False
 
     def set_bomb_contacts(self):
         if self.contents == Contents.bomb:
             self.bomb_contacts = -1
+            return
 
         def get(field, loc):
             if loc[0] >= field.width or loc[0] < 0:
@@ -150,6 +182,25 @@ class Cell(object):
 
     def left_edge(self):
         return self.x == 0
+
+    def get_adjacent(self):
+        """
+        Returns a list containing all cells which are adjacent to the provided cell.
+        """
+
+        def get(incell, loc):
+            x = incell.x + loc[0]
+            y = incell.y + loc[1]
+            if x >= incell.field.width or x < 0:
+                return None
+            if y >= incell.field.height or y < 0:
+                return None
+            return incell.field.board[x][y]
+
+        touching = [self.above(), self.below(), self.right(), self.left()]
+        corner_deltas = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+        touching += [get(self, delt) for delt in corner_deltas]
+        return [x for x in touching if x]
 
     def render(self):
         header = ""
@@ -213,6 +264,8 @@ class Cell(object):
             bg = colors.background(colors.COLOR_WHITE, colors.COLOR_RED)
             return colors.apply_color(bg, to_display)
         if not self.probed:
+            if self.transparent:
+                to_display = fmt.format(self.contents)
             bg = colors.background(colors.COLOR_BLACK, colors.COLOR_WHITE)
             return colors.apply_color(bg, to_display)
 
@@ -225,13 +278,13 @@ def nearness_colors(contacts):
     elif contacts == 0:
         return colors.COLOR_BLACK
     elif contacts == 1:
-        return colors.COLOR_CYAN
+        return colors.COLOR_GREEN_BRIGHT
     elif contacts == 2:
-        return colors.COLOR_BLUE_BRIGHT
+        return colors.COLOR_CYAN_BRIGHT
     elif contacts == 3:
         return colors.COLOR_YELLOW
     elif contacts >= 4:
-        return colors.COLOR_RED
+        return colors.COLOR_MAGENTA_BRIGHT
     else:
         return colors.COLOR_WHITE
 
