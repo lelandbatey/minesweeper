@@ -112,6 +112,7 @@ def win_game(field):
 def probe(mfield):
     """
     Probes the minefields currently selected cell.
+    If the current cell is flagged, silently ignores the probe.
     If the current cell has a bomb in it, the user loses the game.
     If the current cell does not have a bomb in it, but the current cell is
     adjacent to a cell that does have a bomb in it, then the number of bombs
@@ -124,6 +125,8 @@ def probe(mfield):
         if not len(q):
             break
         cell = q.popleft()
+        if cell.flaged:
+            continue
         if not cell.probed:
             cell.probed = True
             if cell.contents == minefield.Contents.bomb:
