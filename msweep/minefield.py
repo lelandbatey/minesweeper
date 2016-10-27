@@ -161,7 +161,7 @@ class Cell(object):
 
     def right(self):
         new_pos = [self.x + 1, self.y]
-        if new_pos[0] >= self.height:
+        if new_pos[0] >= self.width:
             return None
         return self.field.board[new_pos[0]][new_pos[1]]
 
